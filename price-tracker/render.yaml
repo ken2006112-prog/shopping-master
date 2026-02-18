@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: price-tracker
+    env: docker
+    plan: free
+    branch: master
+    numInstances: 1
+    healthCheckPath: /api/products
+    envVars:
+      - key: PORT
+        value: 3000
