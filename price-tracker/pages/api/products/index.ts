@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '../../lib/db';
-import { scrapeProduct } from '../../lib/scraper';
+import pool from '../../../lib/db';
+import { scrapeProduct } from '../../../lib/scraper';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {

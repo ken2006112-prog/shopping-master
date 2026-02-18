@@ -65,7 +65,8 @@ export async function scrapeProduct(url: string): Promise<ScrapedData | null> {
 
         } else if (url.includes('pchome.com.tw')) {
             platform = 'PChome';
-            title = await page.$eval('.prod_name', el => el.textContent?.trim() || '').catch(() => document.title);
+            title = await page.$eval('.prod_name', el => el.textContent?.trim() || '').catch(() => '');
+            if (!title) title = await page.title();
             const priceText = await page.$eval('.price .val', el => el.textContent || '0').catch(() => '0');
             price = parseInt(priceText.replace(/[^0-9]/g, ''), 10);
             image_url = await page.$eval('.prod_img img', el => el.getAttribute('src')).catch(() => null);
