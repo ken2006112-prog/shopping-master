@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import db from '../../lib/db';
+import pool from '../../lib/db';
 import { scrapeProduct } from '../../lib/scraper';
-// import { sendNotification } from '../../lib/mailer'; // To be implemented
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
@@ -10,27 +9,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        const products = db.prepare('SELECT * FROM products').all();
+        const { rows: products } = await pool.query('SELECT * FROM products');
         const updates = [];
 
         for (const product of products) {
             try {
-                // Add a small delay to avoid rate limiting if many products
+                // Add a small delay to avoid rate limiting
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
                 const data = await scrapeProduct(product.url);
                 if (data && data.price > 0) {
-                    // Update current price in product table
-                    db.prepare('UPDATE products SET current_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-                        .run(data.price, product.id);
+                    // Update current price
+                    await pool.query(
+                        'UPDATE products SET current_price = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                        [data.price, product.id]
+                    );
 
                     // Add to history
-                    db.prepare('INSERT INTO price_history (product_id, price) VALUES (?, ?)')
-                        .run(product.id, data.price);
+                    await pool.query(
+                        'INSERT INTO price_history (product_id, price) VALUES ($1, $2)',
+                        [product.id, data.price]
+                    );
 
                     // Check for target price alert
                     if (product.target_price && data.price <= product.target_price) {
-                        // sendNotification(product, data.price);
                         console.log(`Price drop alert for ${product.title}: NT$ ${data.price}`);
                         updates.push({ id: product.id, status: 'alert', title: product.title });
                     } else {

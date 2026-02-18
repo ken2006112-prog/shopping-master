@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import db from '../../../lib/db';
+import pool from '../../../lib/db';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     const { id } = req.query;
 
     if (!id || Array.isArray(id)) {
@@ -10,26 +10,26 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'GET') {
         try {
-            const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+            const productRes = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+            constproduct = productRes.rows[0];
 
-            if (!product) {
+            if (!product) { // Fix typo: constproduct -> const product
                 return res.status(404).json({ error: 'Product not found' });
             }
 
-            const history = db.prepare('SELECT price, scraped_at FROM price_history WHERE product_id = ? ORDER BY scraped_at DESC').all(id);
+            const historyRes = await pool.query('SELECT price, scraped_at FROM price_history WHERE product_id = $1 ORDER BY scraped_at DESC', [id]);
 
-            res.status(200).json({ ...product, history });
+            res.status(200).json({ ...productRes.rows[0], history: historyRes.rows });
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: 'Failed to fetch product details' });
         }
     } else if (req.method === 'DELETE') {
-        // Duplicate logic if we want strictly RESTful under ID, but index handles query param too.
-        // Good to have strict path support.
         try {
-            db.prepare('DELETE FROM products WHERE id = ?').run(id);
+            await pool.query('DELETE FROM products WHERE id = $1', [id]);
             res.status(200).json({ success: true });
         } catch (error) {
+            console.error(error);
             res.status(500).json({ error: 'Failed to delete' });
         }
     } else {
